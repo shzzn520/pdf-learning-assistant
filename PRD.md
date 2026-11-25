@@ -1,261 +1,111 @@
-# PDF 智能学习助手 — Technical Design
+# PDF 智能学习助手 — Product Requirements Document (PRD)
 
-## 1. 系统概述
+> 文档版本：1.0
+> 状态：可开发
+> 目标用户：大学生、考研学生及自学者
 
-采用前后端分离架构：
+## 1. 项目背景
 
-```text
-微信小程序（Vue3 + uni-app + Wot Design Uni）
-                  |
-                  | HTTPS REST API
-                  v
-Flask 后端（认证 / PDF任务 / AI生成 / 学习算法）
-                  |
-       +----------+----------+
-       |                     |
-     MySQL              本地文件或对象存储
- 业务与学习数据             PDF 文件
-```
+用户希望通过上传 PDF 课程资料，将文档自动转换为可复习的知识点、练习题和复习任务。项目形态为微信小程序，后端使用 Flask，数据库使用 MySQL，前端使用 Vue3 + uni-app + Wot Design Uni。
 
-## 2. 技术栈
+## 2. 产品目标
 
-- 前端：Vue 3、uni-app、TypeScript、Wot Design Uni、Pinia
-- 后端：Python 3.11+、Flask、Flask-SQLAlchemy、Pydantic、Celery（可选）
-- 数据库：MySQL 8
-- PDF：PyMuPDF 或 pypdf
-- OCR：Tesseract 或云端 OCR（扩展项）
-- AI：OpenAI-compatible REST API
-- 文件存储：开发环境本地目录，生产环境腾讯云 COS
-- 部署：Gunicorn、Nginx、HTTPS
+- 上传并解析文字型 PDF。
+- 自动提取章节、摘要和知识点。
+- 根据知识点生成可配置题目。
+- 支持答题、判分、解析和错题本。
+- 根据答题表现安排间隔复习。
+- 展示学习进度、收藏和每日打卡。
+- 支持对文档内容提问，并尽量提供页码来源。
 
-## 3. 前端结构
+## 3. 用户角色
 
-```text
-frontend/
-├── src/
-│   ├── api/
-│   ├── components/
-│   ├── pages/
-│   ├── stores/
-│   ├── styles/
-│   └── utils/
-├── src/App.vue
-├── src/main.js
-├── src/manifest.json
-└── src/pages.json
-```
+- 普通学生：上传文档、学习知识点、答题与复习。
+- 系统管理员：查看系统概况、管理课程、文档、题目和用户（可作为后期/答辩模块）。
 
-页面包括：首页、课程、文档详情、练习、错题本、复习、个人中心。
+## 4. MVP 功能范围
 
-## 4. 后端结构
+### 4.1 课程管理
 
-```text
-backend/
-├── app/
-│   ├── api/
-│   ├── services/
-│   ├── models.py
-│   ├── schemas.py
-│   └── extensions.py
-├── migrations/
-├── tests/
-└── app.py
-```
+- 微信登录或测试账号登录。
+- 创建、修改、删除课程。
+- 在课程下上传和删除 PDF。
+- 展示文档解析状态：已上传、解析中、解析成功、解析失败。
 
-## 5. 数据模型
+### 4.2 PDF 处理
 
-### users
+- 上传 PDF 至服务端或对象存储。
+- 提取文字和页码。
+- 按章节或固定字数切分文本。
+- 提取知识点和摘要。
+- 扫描件 OCR 为第一期后续功能。
 
-- id BIGINT PK
-- openid VARCHAR(64) UNIQUE NULL
-- nickname VARCHAR(100)
-- avatar_url VARCHAR(500)
-- created_at DATETIME
-- updated_at DATETIME
+### 4.3 知识学习
 
-### courses
+- 查看知识点列表。
+- 查看知识点摘要及原文页码。
+- 收藏或取消收藏知识点。
+- 针对知识点或全文提问。
+- 回答尽量引用原文来源页码。
 
-- id BIGINT PK
-- user_id BIGINT FK
-- name VARCHAR(150)
-- description TEXT
-- deleted_at DATETIME NULL
+### 4.4 智能练习
 
-### documents
+支持单选题、多选题、判断题、填空题；可配置知识点/文档范围、题目数量、章节和难度。
 
-- id BIGINT PK
-- course_id BIGINT FK
-- filename VARCHAR(255)
-- file_path VARCHAR(500)
-- file_size BIGINT
-- status ENUM(uploaded, parsing, parsed, failed)
-- page_count INT
-- error_message TEXT
-- deleted_at DATETIME NULL
+提交答题后自动判分、显示答案和解析、记录答题时间及正确性；错题加入错题本。
 
-### knowledge_points
+### 4.5 错题与复习
 
-- id BIGINT PK
-- document_id BIGINT FK
-- title VARCHAR(255)
-- content TEXT
-- page_start INT
-- page_end INT
-- section_title VARCHAR(255)
+- 错题按文档和知识点筛选，支持重新练习。
+- 使用间隔重复规则生成复习任务。
+- 首版复习间隔可采用 1、3、7、15、30 天。
+- 支持每日打卡及连续天数统计。
 
-### questions
+### 4.6 学习统计
 
-- id BIGINT PK
-- knowledge_point_id BIGINT FK
-- question_type ENUM(single, multiple, boolean, fill)
-- difficulty ENUM(easy, medium, hard)
-- question_text TEXT
-- options_json JSON NULL
-- answer_text TEXT
-- explanation TEXT
+展示今日复习量、累计答题量、正确率、收藏数量和各课程学习进度。
 
-### answer_records
+## 5. 不纳入 MVP
 
-- id BIGINT PK
-- user_id BIGINT FK
-- question_id BIGINT FK
-- user_answer TEXT
-- is_correct BOOLEAN
-- answered_at DATETIME
+复杂思维导图、扫描件 OCR、文档多人协作、社区分享、视频音频课程、会员支付和云端复杂个性化推荐。
 
-### review_tasks
+后续扩展方向：AI 思维导图、PDF 内页跳转、自适应知识点划分、OCR、基于历史答题数据的难度调整。
 
-- id BIGINT PK
-- user_id BIGINT FK
-- knowledge_point_id BIGINT FK
-- due_at DATETIME
-- status ENUM(pending, completed, skipped)
-- ease_factor DECIMAL
-- review_count INT
+## 6. 非功能需求
 
-### favorites
+- 适配常见 iPhone 和 Android 屏幕。
+- AI、API Key 及数据库密码不得暴露在小程序端。
+- 仅接受 PDF，建议单文件不超过 20MB。
+- AI 生成任务支持异步执行和状态查询。
+- 关键接口进行参数、身份和资源归属校验。
+- 用户可删除文档及其关联知识点、题目和答题记录。
 
-- id BIGINT PK
-- user_id BIGINT FK
-- knowledge_point_id BIGINT FK
-- created_at DATETIME
+## 7. 验收标准
 
-## 6. 核心流程
+1. 用户可成功上传文字型 PDF。
+2. 系统展示解析状态和对应知识点。
+3. 用户可生成至少单选题并提交答案。
+4. 错题可在错题本中再次练习。
+5. 今日复习任务可按答题结果生成。
+6. 知识点问答可展示页码来源。
+7. 用户可删除文档，关联文件和数据不可再访问。
 
-### PDF 处理流程
+## 8. 里程碑
 
-```text
-上传 PDF
-  -> 校验格式和��小
-  -> 保存文件
-  -> 创建 document(status=uploaded)
-  -> 异步解析
-  -> 按页提取文本
-  -> 清洗和分段
-  -> 调用 AI 生成知识点
-  -> 保存页码范围
-  -> status=parsed
-```
+- M1：项目骨架、登录、课程、数据库。
+- M2：PDF 上传、文本解析、知识点展示。
+- M3：AI 题目生成、答题判分、错题本。
+- M4：复习计划、打卡、学习统计。
+- M5：异常处理、UI 优化、答辩演示和文档完善。
 
-解析失败时保留错误信息并返回 `status=failed`。
+## 9. 风险
 
-### AI 题目生成流程
+- AI 输出格式不稳定：使用 JSON Schema 和重试机制。
+- PDF 解析内容混乱：首版支持常规文字型 PDF。
+- 小程序网络限制：后端使用合法 HTTPS 域名。
+- 文件过大导致超时：限制大小并异步处理。
+- 用户误删数据：删除前二次确认。
 
-```text
-选择知识点
-  -> 构造含页码上下文的提示词
-  -> 限定输出 JSON Schema
-  -> 调用模型
-  -> 校验题型、选项、答案和解析
-  -> 保存题目
-```
+## 10. 验证指标
 
-禁止把 MySQL 密钥、AI 密钥或管理员凭据下发到小程序。
-
-## 7. API 设计
-
-统一成功响应：
-
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {}
-}
-```
-
-### 认证
-
-- POST `/api/v1/auth/test-login`
-- POST `/api/v1/auth/wechat-login`
-
-### 课程与文档
-
-- GET `/api/v1/courses`
-- POST `/api/v1/courses`
-- GET `/api/v1/courses/{course_id}`
-- DELETE `/api/v1/courses/{course_id}`
-- POST `/api/v1/documents/upload`
-- GET `/api/v1/documents/{document_id}`
-- DELETE `/api/v1/documents/{document_id}`
-
-### 知识与题目
-
-- GET `/api/v1/documents/{document_id}/knowledge`
-- POST `/api/v1/knowledge/{knowledge_id}/generate-questions`
-- GET `/api/v1/questions/{knowledge_id}`
-- POST `/api/v1/questions/{question_id}/answer`
-- POST `/api/v1/knowledge/{knowledge_id}/favorite`
-- POST `/api/v1/knowledge/{knowledge_id}/ask`
-
-### 复习与统计
-
-- GET `/api/v1/review/today`
-- POST `/api/v1/review/{task_id}/complete`
-- GET `/api/v1/mistakes`
-- GET `/api/v1/statistics/summary`
-- POST `/api/v1/checkin`
-
-## 8. 复习算法
-
-首版使用简化 SM-2：
-
-- 答对且连续答对：间隔乘 ease_factor。
-- 答错：重置为当天或下一日复习。
-- 初始 interval：0 天。
-- 初始 ease_factor：2.5。
-
-示例：
-
-```text
-第1次答对：1天
-第2次答对：3天
-第3次答对：7天
-第4次答对：15天
-答错：下一天
-```
-
-## 9. 安全与隐私
-
-- 使用 JWT 或服务端登录会话。
-- 校验用户对课程、文档和知识点的资源归属。
-- 校验 PDF 扩展名、MIME、大小和文件结构。
-- 使用 UUID 文件名，不使用用户原始文件名。
-- AI 请求不附带其他用户数据。
-- 删除文档时删除文件、知识点、题目和相关记录。
-- 使用 HTTPS 和环境变量管理密钥。
-
-## 10. 部署
-
-开发环境：Flask、MySQL Docker、本地文件目录、微信开发者工具。
-
-生产环境：Nginx → Gunicorn → Flask，Redis + Celery（可选），MySQL、腾讯云 COS、HTTPS。
-
-## 11. 测试策略
-
-- 后端：pytest 与接口测试。
-- 数据库：测试数据库或事务回滚。
-- PDF：文字型、乱码、加密和空文档用例。
-- AI：固定 Mock 响应验证格式和重试。
-- 前端：微信开发者工具真机预览。
-- 核心流程：上传 → 解析 → 生成题目 → 答题 → 错题复习。
+跟踪 PDF 解析成功率、知识点结构可读率、题目可用率、页码引用准确率、复习任务完成率和核心流程端到端通过率。
